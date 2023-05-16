@@ -17,27 +17,25 @@ def get_transaction_receipt(tx_hash):
 
 
 def scan_ethereum_blockchain():
-    # Get the current block number
-    end_block = w3.eth.block_number
     # Get the last scanned block from a file (if it exists)
     if os.path.exists("last_scanned_block.txt"):
         with open("last_scanned_block.txt", "r") as file:
             start_block = int(file.read().strip())
     else:
-        start_block = end_block
+        start_block = 0
 
     # Start scanning from the last scanned block
-    block = start_block + 1
+    block = start_block
 
     while True:
         # Get the latest block number
         latest_block = w3.eth.block_number
         if latest_block > block:
-            print(f"Scanning Blocks {block} to {latest_block}")
+            print(f"Scanning Blocks {block+1} to {latest_block}")
             data = []
 
             # Iterate through blocks to scan
-            for b in range(block, latest_block + 1):
+            for b in range(block+1, latest_block + 1):
                 # Get block data
                 block_data = w3.eth.get_block(b, full_transactions=True)
                 # Iterate through all transactions in the block
@@ -59,10 +57,6 @@ def scan_ethereum_blockchain():
                                 'timestamp': timestamp
                             })
 
-            # Save the last scanned block to a file
-            with open("last_scanned_block.txt", "w") as file:
-                file.write(str(latest_block))
-
             # If there are new contract creations, display the results
             if data:
                 print("Contract Creations:")
@@ -73,8 +67,8 @@ def scan_ethereum_blockchain():
                     print(f"Timestamp: {item['timestamp']}")
                     print("---------------------")
 
-            # Update the block variable to continue from the next block
-            block = latest_block + 1
+            # Update the block variable to the latest scanned block
+            block = latest_block
 
         # Sleep for a specific time interval (e.g., 10 seconds) before checking for new blocks again
         time.sleep(10)
