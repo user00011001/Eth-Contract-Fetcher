@@ -9,7 +9,6 @@ A simple Python script to continuously scan the Ethereum blockchain for new cont
 
 ### Features
 - Scans the Ethereum blockchain for newly created contracts
-- Tracks the latest scanned block to resume scanning from the previous state
 - Displays the block number, sender's address, contract address, and timestamp of each contract creation
 
 ### How to Run
