@@ -1,4 +1,4 @@
-## Contract Data Fetcher
+## Eth Contract Fetcher
 
 A simple Python script to continuously scan the Ethereum blockchain for new contract creations.
 
