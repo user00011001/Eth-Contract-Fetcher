@@ -22,4 +22,4 @@ A simple Python script to continuously scan the Ethereum blockchain for new cont
 python3 contract_data.py
 ```
 
-The script will start scanning the Ethereum blockchain for new contract creations continuously until manually stopped.
+The script will start scanning the Ethereum blockchain for new contract creations continuously until manually stopped. 
