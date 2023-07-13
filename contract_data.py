@@ -1,69 +1,80 @@
 import os
-import pandas as pd
+import logging
+from typing import Dict, List, Optional
 from web3 import Web3, exceptions
-import time
 from datetime import datetime
+import time
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
 
 # Connect to Ethereum mainnet via Infura
 w3 = Web3(Web3.HTTPProvider('https://mainnet.infura.io/v3/Your-Infura-Project-Id'))
 
-# Function to get a transaction receipt using its hash
-def get_transaction_receipt(tx_hash):
+def get_transaction_receipt(tx_hash: str) -> Optional[Dict]:
     try:
         return w3.eth.get_transaction_receipt(tx_hash)
-    except exceptions.TransactionNotFound:  # If the transaction cannot be found
+    except exceptions.TransactionNotFound as e:
+        logging.error(f"Transaction not found: {e}")
         return None
 
-# Function to scan the Ethereum blockchain
-def scan_ethereum_blockchain():
-    # If file exists, open it and read the last scanned block
+def get_start_block() -> int:
     if os.path.exists("last_scanned_block.txt"):
         with open("last_scanned_block.txt", "r") as file:
-            start_block = int(file.read().strip())
+            return int(file.read().strip())
     else:
-        start_block = 0  # Otherwise, start from block 0
+        return 0  # Otherwise, start from block 0
 
-    block = start_block
+def get_block_data(b: int) -> Dict:
+    try:
+        return w3.eth.get_block(b, full_transactions=True)
+    except Exception as e:
+        logging.error(f"Error while getting block data: {e}")
+        return {}
+
+def get_timestamp(b: int) -> str:
+    timestamp = get_block_data(b)['timestamp']
+    return datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+def scan_blocks(block: int, latest_block: int) -> List[Dict]:
+    data = []
+    for b in range(block+1, latest_block + 1):
+        block_data = get_block_data(b)
+        for tx in block_data.get('transactions', []):
+            if tx['to'] is None:  # If the transaction is contract creation
+                receipt = get_transaction_receipt(tx['hash'])
+                if receipt is not None:
+                    contract_address = receipt['contractAddress']
+                    timestamp = get_timestamp(b)
+                    data.append({
+                        'block': b,
+                        'from': tx['from'],
+                        'contract_address': contract_address,
+                        'timestamp': timestamp
+                    })
+    return data
+
+def scan_ethereum_blockchain():
+    block = get_start_block()
 
     while True:
-        # Get the latest block number
         latest_block = w3.eth.block_number
         if latest_block > block:
-            print(f"Scanning Blocks {block+1} to {latest_block}")
-            data = []
-
-            # Iterate over blocks
-            for b in range(block+1, latest_block + 1):
-                # Get block data with full transactions
-                block_data = w3.eth.get_block(b, full_transactions=True)
-                for tx in block_data['transactions']:
-                    if tx['to'] is None:  # If the transaction is contract creation
-                        receipt = get_transaction_receipt(tx['hash'])
-                        if receipt is not None:
-                            contract_address = receipt['contractAddress']
-                            # Get timestamp and convert it to a readable format
-                            timestamp = w3.eth.get_block(b)['timestamp']
-                            timestamp = datetime.fromtimestamp(timestamp).strftime("%Y-%m-%d %H:%M:%S")
-                            # Append data
-                            data.append({
-                                'block': b,
-                                'from': tx['from'],
-                                'contract_address': contract_address,
-                                'timestamp': timestamp
-                            })
+            logging.info(f"Scanning Blocks {block+1} to {latest_block}")
+            data = scan_blocks(block, latest_block)
 
             if data:
-                print("Contract Creations:")
+                logging.info("Contract Creations:")
                 for item in data:
-                    print(f"Block: {item['block']}")
-                    print(f"From: {item['from']}")
-                    print(f"Contract Address: {item['contract_address']}")
-                    print(f"Timestamp: {item['timestamp']}")
-                    print("---------------------")
+                    logging.info(f"Block: {item['block']}")
+                    logging.info(f"From: {item['from']}")
+                    logging.info(f"Contract Address: {item['contract_address']}")
+                    logging.info(f"Timestamp: {item['timestamp']}")
+                    logging.info("---------------------")
 
-            block = latest_block  # Update the block number to the latest block
+            block = latest_block
 
-        time.sleep(10)  # Wait 10 seconds before checking again
+        time.sleep(10)
 
 # Call the function
 scan_ethereum_blockchain()
